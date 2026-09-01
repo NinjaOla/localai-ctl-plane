@@ -1,0 +1,69 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div class="app-shell">
+    <aside class="app-rail">
+        <a class="brand" href="/" aria-label="llamactl home">
+            <span class="brand-mark">L</span>
+            <span>llamactl</span>
+        </a>
+
+        <nav aria-label="Primary navigation">
+            <NavLink href="/nodes" Match="NavLinkMatch.All">
+                <MudIcon Icon="@Icons.Material.Outlined.Dns" />
+                <span>Nodes</span>
+            </NavLink>
+        </nav>
+
+        <div class="rail-status">
+            <span class="status-dot"></span>
+            <span>Control plane online</span>
+        </div>
+    </aside>
+
+    <main class="app-main">
+        <header class="top-bar">
+            <span>Local inference fleet</span>
+            <span class="environment-label">development</span>
+        </header>
+        <ErrorBoundary>
+            <ChildContent>
+                <div class="page-content">@Body</div>
+            </ChildContent>
+            <ErrorContent>
+                <div class="fatal-error" role="alert">This view could not be rendered. Reload to recover.</div>
+            </ErrorContent>
+        </ErrorBoundary>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#202723",
+            Secondary = "#d5a929",
+            Success = "#13795b",
+            Error = "#b42318",
+            Background = "#f3f5f2",
+            Surface = "#ffffff",
+            TextPrimary = "#171b18",
+            TextSecondary = "#626962",
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography { FontFamily = ["Manrope", "sans-serif"] },
+        },
+    };
+}

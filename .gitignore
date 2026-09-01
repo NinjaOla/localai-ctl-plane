@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+.vs/
+.vscode/
+llamactl.Web/data/
+*.user
+*.suo
+TestResults/

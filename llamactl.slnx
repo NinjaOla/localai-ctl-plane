@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="llamactl.Agent/llamactl.Agent.csproj" />
+  <Project Path="llamactl.Contracts/llamactl.Contracts.csproj" />
+  <Project Path="llamactl.Tests/llamactl.Tests.csproj" />
+  <Project Path="llamactl.Web/llamactl.Web.csproj" />
+</Solution>

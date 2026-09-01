@@ -1,0 +1,195 @@
+@page "/"
+@page "/nodes"
+@implements IDisposable
+@inject ListNodes.Handler ListNodesHandler
+@inject OnboardNode.Handler OnboardNodeHandler
+@inject ISnackbar Snackbar
+
+<PageTitle>Nodes | llamactl</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">Fleet</p>
+        <h1>Nodes</h1>
+    </div>
+    <div class="fleet-count" aria-label="Registered node count">
+        <strong>@_nodes.Count</strong>
+        <span>registered</span>
+    </div>
+</div>
+
+<div class="node-workspace">
+    <section class="registry-panel" aria-labelledby="registry-title">
+        <div class="section-heading">
+            <div>
+                <h2 id="registry-title">Registry</h2>
+                <p>Last reported hardware and runtime state.</p>
+            </div>
+            <MudTooltip Text="Refresh nodes">
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                               Disabled="@_loading"
+                               OnClick="LoadNodesAsync" />
+            </MudTooltip>
+        </div>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Success" Indeterminate="true" />
+        }
+        else
+        {
+            <MudTable Items="_nodes" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Node</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>GPU</MudTh>
+                    <MudTh>VRAM</MudTh>
+                    <MudTh>llama.cpp</MudTh>
+                    <MudTh>Last seen</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Node"><strong>@context.Name</strong></MudTd>
+                    <MudTd DataLabel="Status">
+                        <span class="health-badge @HealthClass(context.Health)">@HealthLabel(context.Health)</span>
+                    </MudTd>
+                    <MudTd DataLabel="GPU">@(context.GpuName ?? "Not reported")</MudTd>
+                    <MudTd DataLabel="VRAM">@FormatVram(context.VramTotalMiB)</MudTd>
+                    <MudTd DataLabel="llama.cpp">@(context.LlamaCppVersion ?? "Not reported")</MudTd>
+                    <MudTd DataLabel="Last seen">@FormatLastSeen(context.LastSeen)</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <div class="empty-state">
+                        <MudIcon Icon="@Icons.Material.Outlined.Dns" Size="Size.Large" />
+                        <strong>No nodes registered</strong>
+                        <span>Use the onboarding form to create the first agent identity.</span>
+                    </div>
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </section>
+
+    <aside class="onboard-panel" aria-labelledby="onboard-title">
+        <p class="eyebrow">Enrollment</p>
+        <h2 id="onboard-title">Onboard node</h2>
+        <p class="panel-copy">Create the identity an agent will use on its first outbound connection.</p>
+
+        <MudTextField @bind-Value="_name"
+                      Label="Node name"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Disabled="@_submitting"
+                      Immediate="true" />
+        <MudTextField @bind-Value="_bootstrapToken"
+                      Label="Bootstrap token"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      InputType="InputType.Password"
+                      Disabled="@_submitting"
+                      Immediate="true" />
+
+        @if (_formError is not null)
+        {
+            <div class="inline-error" role="alert">@_formError</div>
+        }
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Disabled="@_submitting"
+                   OnClick="OnboardAsync">
+            @(_submitting ? "Registering" : "Register node")
+        </MudButton>
+    </aside>
+</div>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<ListNodes.Response> _nodes = [];
+    private string _name = string.Empty;
+    private string _bootstrapToken = string.Empty;
+    private string? _formError;
+    private bool _loading = true;
+    private bool _submitting;
+
+    protected override async Task OnInitializedAsync() => await LoadNodesAsync();
+
+    private async Task LoadNodesAsync()
+    {
+        _loading = true;
+        try
+        {
+            _nodes = await ListNodesHandler.HandleAsync(new(), _lifetime.Token);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnboardAsync()
+    {
+        if (_submitting)
+            return;
+
+        var command = new OnboardNode.Command
+        {
+            Name = _name,
+            BootstrapToken = _bootstrapToken,
+        };
+        var validation = OnboardNode.Command.Validate(command);
+        if (validation.Any())
+        {
+            _formError = string.Join(" ", validation.Select(error => error.ErrorMessage));
+            return;
+        }
+
+        _submitting = true;
+        _formError = null;
+        try
+        {
+            var result = await OnboardNodeHandler.HandleAsync(command, _lifetime.Token);
+            if (!result.IsSuccess)
+            {
+                _formError = result.Error?.Message;
+                return;
+            }
+
+            _name = string.Empty;
+            _bootstrapToken = string.Empty;
+            Snackbar.Add("Node registered. Waiting for its first agent connection.", Severity.Success);
+            await LoadNodesAsync();
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private static string HealthClass(NodeHealth health) => health switch
+    {
+        NodeHealth.Healthy => "health-healthy",
+        NodeHealth.Degraded => "health-degraded",
+        NodeHealth.Unreachable => "health-unreachable",
+        _ => "health-pending",
+    };
+
+    private static string HealthLabel(NodeHealth health) => health switch
+    {
+        NodeHealth.PendingConfiguration => "Pending config",
+        _ => health.ToString(),
+    };
+
+    private static string FormatVram(long? mebibytes) => mebibytes is null
+        ? "Not reported"
+        : $"{mebibytes.Value / 1024d:0.#} GiB";
+
+    private static string FormatLastSeen(DateTimeOffset? lastSeen) => lastSeen is null
+        ? "Never"
+        : lastSeen.Value.LocalDateTime.ToString("g");
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}
