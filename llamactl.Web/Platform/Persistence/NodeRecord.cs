@@ -13,5 +13,9 @@ public sealed class NodeRecord
     public long? VramTotalMiB { get; set; }
     public string? LlamaCppVersion { get; set; }
     public string? RocmVersion { get; set; }
+    public string? AnnouncementJson { get; set; }
+    public string? ConfigurationJson { get; set; }
+    public string? ValidationIssuesJson { get; set; }
+    public long DesiredStateVersion { get; set; }
     public long Version { get; set; }
 }

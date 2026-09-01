@@ -45,6 +45,14 @@ public sealed record PathProposal(
     string Path,
     string Reason);
 
+public sealed record AgentAnnouncement(
+    NodeDescription Description,
+    IReadOnlyList<PathProposal> PathProposals,
+    IReadOnlyList<RuntimeDescriptor> Runtimes);
+
+public sealed record AgentHeartbeat(
+    IReadOnlyList<ValidationIssue> ValidationIssues);
+
 public enum NodeHealth
 {
     PendingConfiguration,

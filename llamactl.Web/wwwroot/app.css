@@ -127,6 +127,11 @@ h2 {
   font-size: 0.72rem;
 }
 
+.logout-form {
+  display: flex;
+  justify-content: center;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -210,6 +215,324 @@ h2 {
 .registry-panel {
   min-width: 0;
   padding: 1.25rem;
+}
+
+.operator-panel {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.config-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.config-form .mud-button-root {
+  justify-self: start;
+  border-radius: 4px;
+}
+
+.instance-editor {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.validation-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.validation-item {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.3fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--amber);
+  background: var(--amber-soft);
+  font-size: 0.78rem;
+}
+
+.validation-error {
+  border-left-color: var(--red);
+  background: var(--red-soft);
+}
+
+.validation-information {
+  border-left-color: var(--green);
+  background: var(--green-soft);
+}
+
+.log-workspace {
+  padding: 0;
+  overflow: hidden;
+}
+
+.log-toolbar {
+  display: grid;
+  grid-template-columns: 180px minmax(220px, 1fr) 44px;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: #fafbf9;
+}
+
+.log-tail {
+  height: min(68vh, 720px);
+  overflow: auto;
+  background: #161b18;
+  color: #dfe7e1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.log-line {
+  display: grid;
+  grid-template-columns: 64px 96px 54px minmax(0, 1fr);
+  gap: 0.65rem;
+  padding: 0.28rem 0.75rem;
+  border-bottom: 1px solid #252d28;
+}
+
+.log-sequence,
+.log-line time,
+.log-stream {
+  color: #92a096;
+}
+
+.log-standarderror .log-stream,
+.log-standarderror .log-text {
+  color: #ffb4aa;
+}
+
+.log-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.preset-editor,
+.preset-preview {
+  display: grid;
+  gap: 1rem;
+}
+
+.preset-preview {
+  margin-top: 1rem;
+}
+
+.preset-diff {
+  max-height: 420px;
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  background: #161b18;
+  color: #dfe7e1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+}
+
+.router-warning {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border-left: 3px solid var(--amber);
+  background: var(--amber-soft);
+  color: #684700;
+  font-size: 0.78rem;
+}
+
+.login-shell {
+  display: grid;
+  min-height: calc(100vh - 160px);
+  place-items: center;
+}
+
+.login-panel {
+  width: min(380px, 100%);
+  padding: 2rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.login-panel form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.native-field {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.native-field input {
+  min-height: 46px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #858b86;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.login-panel .mud-button-root {
+  justify-self: start;
+}
+
+.node-picker {
+  width: min(280px, 45vw);
+}
+.model-section {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.model-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding: 0.75rem;
+  background: #f4f7f4;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.model-summary strong {
+  color: var(--ink);
+  font-family: "IBM Plex Mono", monospace;
+}
+.operation-list {
+  max-height: 320px;
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  background: #161b18;
+  color: #dfe7e1;
+  font:
+    0.72rem "IBM Plex Mono",
+    monospace;
+  white-space: pre-wrap;
+}
+.inspection-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+.inspection-grid span {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.85rem;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.inspection-grid strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+.orphan-list {
+  display: grid;
+  gap: 1px;
+  background: var(--line);
+}
+.orphan-list h3 {
+  margin: 0;
+  padding: 0.75rem;
+  background: #fafbf9;
+  font-size: 0.85rem;
+}
+.orphan-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px 44px;
+  align-items: center;
+  padding-left: 0.75rem;
+  background: var(--surface);
+  font:
+    0.72rem "IBM Plex Mono",
+    monospace;
+}
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+.hf-files {
+  display: grid;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+.hf-files label {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 100px;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 42px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.76rem;
+}
+.fit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+.fit-grid > div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  font-size: 0.76rem;
+}
+.fit-grid small {
+  color: var(--muted);
+}
+.fit-fits {
+  border-top: 3px solid var(--green);
+}
+.fit-exceedsvram,
+.fit-exceedsdisk {
+  border-top: 3px solid var(--red);
+}
+.download-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.4fr) minmax(180px, 1fr) auto 44px;
+  align-items: center;
+  gap: 0.75rem;
+}
+.download-row > div {
+  display: grid;
+  min-width: 0;
+  font-size: 0.72rem;
+}
+.download-row > div span {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operator-panel a,
+.registry-panel a {
+  color: var(--green);
 }
 
 .section-heading {
@@ -391,6 +714,40 @@ h2 {
   .registry-panel,
   .onboard-panel {
     padding: 1rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .log-toolbar {
+    grid-template-columns: 1fr 44px;
+  }
+
+  .log-toolbar .mud-select {
+    grid-column: 1 / -1;
+  }
+
+  .log-line {
+    grid-template-columns: 48px 54px minmax(0, 1fr);
+  }
+
+  .log-line time {
+    display: none;
+  }
+
+  .inspection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .search-row,
+  .download-row {
+    grid-template-columns: 1fr;
+  }
+  .hf-files label {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+  .hf-files label span:last-child {
+    grid-column: 2;
   }
 }
 

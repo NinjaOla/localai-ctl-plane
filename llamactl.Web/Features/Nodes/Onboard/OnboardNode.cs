@@ -1,9 +1,8 @@
-using System.Security.Cryptography;
-using System.Text;
 using Immediate.Apis.Shared;
 using Immediate.Handlers.Shared;
 using Immediate.Validations.Shared;
 using llamactl.Contracts;
+using llamactl.Web.Platform.NodeGateway;
 using llamactl.Web.Platform.Persistence;
 using llamactl.Web.Platform.Results;
 using Microsoft.AspNetCore.Http;
@@ -31,6 +30,7 @@ public sealed partial class OnboardNode(IDbContextFactory<LlamactlDb> dbFactory)
         Command command,
         CancellationToken cancellationToken)
     {
+        ValidationException.ThrowIfInvalid(command);
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var normalizedName = command.Name.Trim();
 
@@ -41,7 +41,7 @@ public sealed partial class OnboardNode(IDbContextFactory<LlamactlDb> dbFactory)
         {
             Id = Guid.NewGuid(),
             Name = normalizedName,
-            BootstrapTokenHash = HashToken(command.BootstrapToken),
+            BootstrapTokenHash = BootstrapToken.Hash(command.BootstrapToken),
         };
 
         db.Nodes.Add(node);
@@ -60,9 +60,4 @@ public sealed partial class OnboardNode(IDbContextFactory<LlamactlDb> dbFactory)
         _ => TypedResults.Problem(statusCode: StatusCodes.Status500InternalServerError)
     };
 
-    private static string HashToken(string token)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
-        return Convert.ToHexString(bytes);
-    }
 }

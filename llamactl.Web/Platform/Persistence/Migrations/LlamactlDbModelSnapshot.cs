@@ -17,16 +17,69 @@ namespace llamactl.Web.Platform.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
 
+            modelBuilder.Entity("llamactl.Web.Platform.Persistence.InstanceRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("AdoptProcessId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DesiredState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("NodeId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ObservedState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ProcessId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SpecJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NodeId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Instances", (string)null);
+                });
+
             modelBuilder.Entity("llamactl.Web.Platform.Persistence.NodeRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AnnouncementJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("BootstrapTokenHash")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("ConfigurationJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DesiredStateVersion")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("GpuName")
                         .HasColumnType("TEXT");
@@ -48,6 +101,9 @@ namespace llamactl.Web.Platform.Persistence.Migrations
                     b.Property<string>("RocmVersion")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ValidationIssuesJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("INTEGER");
@@ -61,6 +117,15 @@ namespace llamactl.Web.Platform.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Nodes", (string)null);
+                });
+
+            modelBuilder.Entity("llamactl.Web.Platform.Persistence.InstanceRecord", b =>
+                {
+                    b.HasOne("llamactl.Web.Platform.Persistence.NodeRecord", null)
+                        .WithMany()
+                        .HasForeignKey("NodeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

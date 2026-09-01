@@ -1,0 +1,42 @@
+@page "/nodes/{NodeId:guid}/preset"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IDisposable
+@inject ManagePreset.Handler ReadPreset
+@inject PreviewPreset.Handler PreviewPresetHandler
+@inject SavePreset.Handler SavePresetHandler
+@inject ISnackbar Snackbar
+@inject ILogger<PresetEditor> Logger
+
+<PageTitle>Preset editor | llamactl</PageTitle>
+<div class="page-heading"><div><p class="eyebrow">models.ini</p><h1>Preset editor</h1></div><MudButton Href="/nodes" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">Nodes</MudButton></div>
+<section class="operator-panel preset-editor">
+    <div class="section-heading"><div><h2>Raw preset</h2><p>Options are checked against this node's reported llama.cpp flags.</p></div></div>
+    <MudTextField T="string" @bind-Value="_content" Label="Preset content" Lines="20" Variant="Variant.Outlined" />
+    @if (_error is not null) { <div class="inline-error">@_error</div> }
+    <div class="form-actions"><MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Difference" OnClick="PreviewAsync">Preview changes</MudButton><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync">Reload</MudButton></div>
+</section>
+@if (_preview is not null)
+{
+    <section class="operator-panel preset-preview">
+        @if (_preview.RouterRestartRequired)
+        {
+            <div class="router-warning"><strong>Router restart required</strong><span>Applying a preset does not reload running routers. Restarting drops loaded models.</span></div>
+        }
+        @foreach (var error in _preview.Errors) { <div class="inline-error">@error</div> }
+        <pre class="preset-diff">@_preview.Diff</pre>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Save" Disabled="@_preview.Errors.Any()" OnClick="ApplyAsync">Apply preset</MudButton>
+    </section>
+}
+@code {
+    [Parameter] public Guid NodeId { get; set; }
+    private readonly CancellationTokenSource _lifetime = new();
+    private string _original = string.Empty;
+    private string _content = string.Empty;
+    private string? _error;
+    private PreviewPreset.Response? _preview;
+    protected override Task OnParametersSetAsync() => LoadAsync();
+    private async Task LoadAsync() { var result = await ReadPreset.HandleAsync(new(NodeId), _lifetime.Token); if (!result.IsSuccess) { _error = result.Error?.Message; return; } _original = _content = result.Value!.Content; _preview = null; _error = null; }
+    private async Task PreviewAsync() { var result = await PreviewPresetHandler.HandleAsync(new(NodeId, _original, _content), _lifetime.Token); if (!result.IsSuccess) { _error = result.Error?.Message; return; } _preview = result.Value; _error = null; }
+    private async Task ApplyAsync() { var command = new SavePreset.Command(NodeId, _content); var result = await Invoke.Guarded(token => SavePresetHandler.HandleAsync(command, token), Logger, _lifetime.Token); if (!result.IsSuccess) { _error = result.Error?.Message; return; } _original = _content; _preview = null; Snackbar.Add("Preset saved. Restart the router to apply it.", Severity.Warning); }
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}

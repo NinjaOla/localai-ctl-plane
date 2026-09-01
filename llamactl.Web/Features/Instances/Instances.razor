@@ -1,0 +1,115 @@
+@page "/instances"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IDisposable
+@inject ListInstances.Handler ListInstancesHandler
+@inject ManageInstance.Handler ManageInstanceHandler
+@inject ListNodes.Handler ListNodesHandler
+@inject ISnackbar Snackbar
+@inject ILogger<Instances> Logger
+
+<PageTitle>Instances | llamactl</PageTitle>
+
+<div class="page-heading">
+    <div><p class="eyebrow">Daily operations</p><h1>Instances</h1></div>
+    <div class="form-actions">
+        <MudTooltip Text="Refresh observed state"><MudIconButton Icon="@Icons.Material.Filled.Refresh" aria-label="Refresh observed state" OnClick="ReloadAsync" /></MudTooltip>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="NewInstance">New instance</MudButton>
+    </div>
+</div>
+
+<section class="operator-panel">
+    <div class="section-heading"><div><h2>Desired and observed state</h2><p>Process changes are reconciled by each connected agent.</p></div></div>
+    <MudTable Items="_instances" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+        <HeaderContent><MudTh>Name</MudTh><MudTh>Node</MudTh><MudTh>Desired</MudTh><MudTh>Observed</MudTh><MudTh>PID</MudTh><MudTh></MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name"><strong>@context.Spec.Name</strong><br /><small>@context.Spec.Profile</small></MudTd>
+            <MudTd DataLabel="Node">@context.NodeName</MudTd>
+            <MudTd DataLabel="Desired">@context.DesiredState</MudTd>
+            <MudTd DataLabel="Observed">@context.ObservedState @context.Error</MudTd>
+            <MudTd DataLabel="PID">@(context.ProcessId?.ToString() ?? "-")</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudTooltip Text="Start"><MudIconButton Icon="@Icons.Material.Filled.PlayArrow" aria-label="Start" OnClick="@(() => ActAsync(context, InstanceAction.Start))" /></MudTooltip>
+                <MudTooltip Text="Stop"><MudIconButton Icon="@Icons.Material.Filled.Stop" aria-label="Stop" OnClick="@(() => ActAsync(context, InstanceAction.Stop))" /></MudTooltip>
+                <MudTooltip Text="Restart"><MudIconButton Icon="@Icons.Material.Filled.RestartAlt" aria-label="Restart" OnClick="@(() => ActAsync(context, InstanceAction.Restart))" /></MudTooltip>
+                <MudTooltip Text="Logs"><MudIconButton Icon="@Icons.Material.Filled.Terminal" aria-label="Logs" Href="@($"/instances/{context.Id}/logs")" /></MudTooltip>
+                <MudTooltip Text="Edit"><MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="Edit" OnClick="@(() => Edit(context))" /></MudTooltip>
+                <MudTooltip Text="Delete"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete" Color="Color.Error" OnClick="@(() => ActAsync(context, InstanceAction.Delete))" /></MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent><div class="empty-state"><strong>No instances configured</strong><span>Create one to establish desired process state.</span></div></NoRecordsContent>
+    </MudTable>
+</section>
+
+@if (_editing)
+{
+    <section class="operator-panel instance-editor">
+        <div class="section-heading"><div><h2>@(_editingId is null ? "New instance" : "Edit instance")</h2><p>Use an existing PID to adopt a running llama-server process.</p></div></div>
+        <div class="form-grid">
+            <MudSelect T="Guid" @bind-Value="_nodeId" Label="Node" Variant="Variant.Outlined" Disabled="@(_editingId is not null)">
+                @foreach (var node in _nodes) { <MudSelectItem T="Guid" Value="@node.Id">@node.Name</MudSelectItem> }
+            </MudSelect>
+            <MudTextField T="string" @bind-Value="_name" Label="Name" Variant="Variant.Outlined" />
+            <MudSelect T="string" @bind-Value="_profile" Label="Profile" Variant="Variant.Outlined">
+                <MudSelectItem T="string" Value="@("router")">Router</MudSelectItem>
+                <MudSelectItem T="string" Value="@("single")">Single model</MudSelectItem>
+            </MudSelect>
+            <MudTextField T="string" @bind-Value="_modelRef" Label="Model path" Variant="Variant.Outlined" Disabled="@(_profile != "single")" />
+            <MudNumericField T="int?" @bind-Value="_port" Label="Port" Variant="Variant.Outlined" />
+            <MudNumericField T="int?" @bind-Value="_adoptProcessId" Label="Adopt existing PID" Variant="Variant.Outlined" />
+            <MudCheckBox T="bool" @bind-Value="_persistent" Color="Color.Success">Persistent desired state</MudCheckBox>
+        </div>
+        @if (_error is not null) { <div class="inline-error">@_error</div> }
+        <div class="form-actions">
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">Save</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="@(() => _editing = false)">Cancel</MudButton>
+        </div>
+    </section>
+}
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<ListInstances.Response> _instances = [];
+    private IReadOnlyList<ListNodes.Response> _nodes = [];
+    private Guid _nodeId;
+    private Guid? _editingId;
+    private string _name = string.Empty;
+    private string _profile = "router";
+    private string? _modelRef;
+    private int? _port;
+    private int? _adoptProcessId;
+    private bool _persistent = true;
+    private bool _editing;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() { _nodes = await ListNodesHandler.HandleAsync(new(), _lifetime.Token); await ReloadAsync(); }
+    private Task ReloadAsync() => LoadAsync();
+    private async Task LoadAsync() => _instances = await ListInstancesHandler.HandleAsync(new(), _lifetime.Token);
+
+    private void NewInstance()
+    {
+        _editingId = null; _nodeId = _nodes.FirstOrDefault()?.Id ?? Guid.Empty; _name = string.Empty;
+        _profile = "router"; _modelRef = null; _port = null; _adoptProcessId = null; _persistent = true; _error = null; _editing = true;
+    }
+    private void Edit(ListInstances.Response instance)
+    {
+        _editingId = instance.Id; _nodeId = instance.NodeId; _name = instance.Spec.Name; _profile = instance.Spec.Profile ?? "router";
+        _modelRef = instance.Spec.ModelRef; _port = instance.Spec.Port; _adoptProcessId = instance.AdoptProcessId; _persistent = instance.Spec.Persistent; _error = null; _editing = true;
+    }
+    private async Task SaveAsync()
+    {
+        var spec = new InstanceSpec(_name, RuntimeId.LlamaCpp, InstanceKind.Managed, _profile, _modelRef, null, _port,
+            new Dictionary<string, string?>(), _persistent);
+        var command = new ManageInstance.Command(InstanceAction.Upsert, _nodeId, _editingId, spec, _adoptProcessId);
+        var result = await Invoke.Guarded(token => ManageInstanceHandler.HandleAsync(command, token), Logger, _lifetime.Token);
+        if (!result.IsSuccess) { _error = result.Error?.Message; return; }
+        _editing = false; Snackbar.Add("Instance desired state saved.", Severity.Success); await ReloadAsync();
+    }
+    private async Task ActAsync(ListInstances.Response instance, InstanceAction action)
+    {
+        var command = new ManageInstance.Command(action, instance.NodeId, instance.Id);
+        var result = await Invoke.Guarded(token => ManageInstanceHandler.HandleAsync(command, token), Logger, _lifetime.Token);
+        if (!result.IsSuccess) { Snackbar.Add(result.Error?.Message ?? "Operation failed.", Severity.Error); return; }
+        await ReloadAsync();
+    }
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}

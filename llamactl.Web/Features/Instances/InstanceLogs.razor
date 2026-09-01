@@ -1,0 +1,96 @@
+@page "/instances/{InstanceId:guid}/logs"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IAsyncDisposable
+@inject InstanceLogStore Logs
+@inject ListInstances.Handler ListInstancesHandler
+
+<PageTitle>Instance logs | llamactl</PageTitle>
+
+<div class="page-heading">
+    <div><p class="eyebrow">Live process output</p><h1>@(_instanceName ?? "Instance logs")</h1></div>
+    <MudButton Href="/instances" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">Instances</MudButton>
+</div>
+
+<section class="operator-panel log-workspace">
+    <div class="log-toolbar">
+        <MudSelect T="ProcessLogStream?" @bind-Value="_stream" Label="Stream" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            <MudSelectItem T="ProcessLogStream?" Value="@((ProcessLogStream?)ProcessLogStream.StandardOutput)">stdout</MudSelectItem>
+            <MudSelectItem T="ProcessLogStream?" Value="@((ProcessLogStream?)ProcessLogStream.StandardError)">stderr</MudSelectItem>
+        </MudSelect>
+        <MudTextField T="string" @bind-Value="_search" Label="Search" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+        <MudTooltip Text="Clear visible logs"><MudIconButton Icon="@Icons.Material.Filled.DeleteSweep" aria-label="Clear visible logs" OnClick="Clear" /></MudTooltip>
+    </div>
+    <div class="log-tail" role="log" aria-live="polite">
+        @foreach (var line in FilteredLines)
+        {
+            <div class="log-line log-@line.Stream.ToString().ToLowerInvariant()">
+                <span class="log-sequence">@line.Sequence</span>
+                <time>@line.Timestamp.LocalDateTime.ToString("HH:mm:ss.fff")</time>
+                <span class="log-stream">@(line.Stream == ProcessLogStream.StandardError ? "stderr" : "stdout")</span>
+                <span class="log-text">@line.Text</span>
+            </div>
+        }
+        @if (_lines.Count == 0)
+        {
+            <div class="empty-state"><strong>No process output yet</strong><span>Output appears while the agent and instance are running.</span></div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public Guid InstanceId { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly List<ProcessLogLine> _lines = [];
+    private Task? _pollTask;
+    private string? _instanceName;
+    private string _search = string.Empty;
+    private ProcessLogStream? _stream;
+    private long _afterSequence;
+
+    private IEnumerable<ProcessLogLine> FilteredLines => _lines.Where(line =>
+        (_stream is null || line.Stream == _stream)
+        && (string.IsNullOrWhiteSpace(_search) || line.Text.Contains(_search, StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var instances = await ListInstancesHandler.HandleAsync(new(), _lifetime.Token);
+        _instanceName = instances.SingleOrDefault(instance => instance.Id == InstanceId)?.Spec.Name;
+        _pollTask ??= PollAsync();
+    }
+
+    private async Task PollAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
+        try
+        {
+            do
+            {
+                var added = Logs.Read(InstanceId, _afterSequence);
+                if (added.Count > 0)
+                {
+                    _lines.AddRange(added);
+                    _afterSequence = added[^1].Sequence;
+                    if (_lines.Count > InstanceLogStore.Capacity)
+                        _lines.RemoveRange(0, _lines.Count - InstanceLogStore.Capacity);
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            while (await timer.WaitForNextTickAsync(_lifetime.Token));
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+    }
+
+    private void Clear() => _lines.Clear();
+
+    public async ValueTask DisposeAsync()
+    {
+        _lifetime.Cancel();
+        if (_pollTask is not null)
+            await _pollTask;
+        _lifetime.Dispose();
+    }
+}

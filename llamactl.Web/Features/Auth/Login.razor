@@ -1,0 +1,25 @@
+@page "/login"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
+<PageTitle>Sign in | llamactl</PageTitle>
+
+<div class="login-shell">
+    <section class="login-panel">
+        <p class="eyebrow">Operator access</p>
+        <h1>llamactl</h1>
+        <p>Sign in to operate the local inference fleet.</p>
+        @if (Navigation.Uri.Contains("failed=true", StringComparison.Ordinal))
+        {
+            <div class="inline-error" role="alert">The operator password was not accepted.</div>
+        }
+        <form method="post" action="/auth/login">
+            <AntiforgeryToken />
+            <label class="native-field">Password<input name="password" type="password" required autocomplete="current-password" /></label>
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success">Sign in</MudButton>
+        </form>
+    </section>
+</div>
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+}

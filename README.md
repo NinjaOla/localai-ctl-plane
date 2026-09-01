@@ -5,9 +5,8 @@ llama.cpp workloads. The control plane is a .NET 10 Blazor Server application;
 each node will run an outbound-connected agent that owns its local processes,
 files, downloads, and telemetry.
 
-This repository is under active development. The node registry is the first
-implemented vertical slice; the agent and instance-management workflows are
-not operational yet.
+This repository is under active development. Phase 1 daily operations and
+Phase 2 model management are operational. Measurement and benchmarks are next.
 
 ## Specifications
 
@@ -42,7 +41,45 @@ not operational yet.
 - Bootstrap tokens hashed before storage
 - Node list and onboarding UI with pending, healthy, degraded, and unreachable
   display states
+- Validated agent bootstrap configuration and resilient outbound SignalR client
+- Bootstrap-token authenticated agent hub with connection-to-node mapping
+- Versioned node announcements with OS, kernel, mounted-filesystem, ROCm GPU,
+  llama.cpp runtime, flag-schema, capability, and path-proposal discovery
+- Full announcement payload persistence with node-list hardware summaries
+- Periodic authenticated heartbeats with healthy, degraded, and unreachable
+  transitions
+- Node configuration UI for explicit paths, VRAM budget, defaults, and port range
+- Agent-side path, write-access, binary, ROCm, and existing-setup validation
+- Persisted validation results shown to operators
+- llama.cpp process supervisor for router and single-model profiles
+- Automatic configured-port allocation and collision prevention
+- Instance create, edit, adopt-by-PID, start, stop, restart, and delete workflows
+- Durable desired and observed instance state with process error reporting
+- Pull-based desired-state reconciliation after changes, reconnects, crashes,
+  and agent restarts, including revisioned PID-file recovery
+- Sequenced stdout/stderr streaming with bounded agent and control-plane buffers
+- Responsive instance log tail with stream filtering and search
+- Agent-owned atomic preset reads/writes with INI parsing and per-node flag validation
+- Preset diff preview and explicit router-restart warning
+- Operator cookie authentication and separate `X-Api-Key` API authentication
+- RFC ProblemDetails exception mapping and guarded Blazor handler invocation
 - Liveness endpoint at `GET /health/live`
+- Database readiness endpoint at `GET /health/ready`
+
+### Model management
+
+- Node-owned GGUF inventory across separate models and Hugging Face volumes
+- HF snapshot, blob, disk-usage, free-space, and orphaned-blob discovery
+- Dry-run and applied flat-library reconciliation for single-file, sharded,
+  multimodal, and excluded draft-head models
+- Hugging Face GGUF repository search and file browsing
+- Complete-variant shard selection with disk and VRAM fit verdicts
+- Agent-owned background downloads with bounded progress and cancellation
+- HF-compatible blob/snapshot layout, partial-file cleanup, and automatic
+  post-download library reconciliation
+- GGUF architecture, training-context, tensor-count, and MTP/nextn inspection
+- Model, linked blob, flat-link, and orphaned-blob deletion
+- Responsive model library, fit, inspection, and download workspace
 
 ### Verification
 
@@ -50,36 +87,10 @@ not operational yet.
 - Port-range boundary tests
 - SQLite-backed onboarding, duplicate-name, and token-hashing test
 - Desktop and mobile browser verification with no horizontal overflow
-- Six automated tests currently passing
+- Forty-three automated tests currently passing
 - Slopwatch strict scan currently reports no issues
 
 ## Still Missing
-
-### Phase 1: Daily operations
-
-- Agent bootstrap configuration and outbound SignalR client
-- Authenticated agent hub and connection-to-node identity mapping
-- Node announcement, hardware discovery, path proposals, and capabilities
-- Heartbeats, last-seen updates, and unreachable/degraded transitions
-- Node configuration UI for paths, VRAM budget, defaults, and port range
-- Agent-side configuration validation and adoption of existing installations
-- Agent process supervisor and runtime provider for llama.cpp
-- Instance list, start, stop, restart, edit, and adoption workflows
-- Desired-state reconciliation after reconnects and restarts
-- Sequenced log streaming with bounded buffers and browser tail view
-- Preset read, validation, editing, diff preview, and router-restart warning
-- Operator cookie authentication and separate API-key authentication
-- ProblemDetails mapping and guarded Blazor handler invocation
-- Readiness health check that includes database availability
-
-### Phase 2: Model management
-
-- Model inventory and library UI
-- HF cache and flat-directory reconciliation
-- Hugging Face search, download, progress, and cancellation
-- Disk/VRAM fit estimation
-- GGUF metadata and draft-head inspection
-- Model and orphaned-blob deletion
 
 ### Phase 3: Measurement
 
@@ -108,7 +119,7 @@ not operational yet.
 
 ```text
 llamactl.Web/        Blazor control plane, feature slices, and persistence
-llamactl.Agent/      Node-side host; currently only scaffolded
+llamactl.Agent/      Node-side processes, model files, downloads, and discovery
 llamactl.Contracts/  Shared wire protocol and runtime-neutral contracts
 llamactl.Tests/      Contract and handler tests
 ```
@@ -123,6 +134,28 @@ dotnet restore llamactl.slnx
 dotnet test llamactl.slnx
 dotnet run --project llamactl.Web
 ```
+
+Development uses `local-operator-password` for browser sign-in and
+`local-development-api-key` for `X-Api-Key`. Override both outside development:
+
+```powershell
+$env:Llamactl__Security__OperatorPassword = "<operator-password>"
+$env:Llamactl__Security__ApiKey = "<api-key>"
+```
+
+Non-development startup fails when either secret is absent or too short.
+
+After onboarding a node, configure its agent with the returned node ID and the
+same bootstrap token. In Windows PowerShell:
+
+```powershell
+$env:Llamactl__ControlPlaneUrl = "http://127.0.0.1:5187"
+$env:Llamactl__NodeId = "<onboarded-node-id>"
+$env:Llamactl__BootstrapToken = "<bootstrap-token>"
+dotnet run --project llamactl.Agent
+```
+
+Keep the bootstrap token outside committed configuration.
 
 The default database path is `llamactl.Web/data/llamactl.db`. The directory is
 created automatically and excluded from source control.

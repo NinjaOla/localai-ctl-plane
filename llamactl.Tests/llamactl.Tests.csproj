@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\llamactl.Contracts\llamactl.Contracts.csproj" />
     <ProjectReference Include="..\llamactl.Web\llamactl.Web.csproj" />
+    <ProjectReference Include="..\llamactl.Agent\llamactl.Agent.csproj" />
   </ItemGroup>
 
 </Project>

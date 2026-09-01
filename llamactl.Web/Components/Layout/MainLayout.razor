@@ -13,9 +13,17 @@
         </a>
 
         <nav aria-label="Primary navigation">
-            <NavLink href="/nodes" Match="NavLinkMatch.All">
+            <NavLink href="/nodes" Match="NavLinkMatch.All" aria-label="Nodes">
                 <MudIcon Icon="@Icons.Material.Outlined.Dns" />
                 <span>Nodes</span>
+            </NavLink>
+            <NavLink href="/instances" aria-label="Instances">
+                <MudIcon Icon="@Icons.Material.Outlined.Memory" />
+                <span>Instances</span>
+            </NavLink>
+            <NavLink href="/models" aria-label="Models">
+                <MudIcon Icon="@Icons.Material.Outlined.Storage" />
+                <span>Models</span>
             </NavLink>
         </nav>
 
@@ -23,6 +31,14 @@
             <span class="status-dot"></span>
             <span>Control plane online</span>
         </div>
+        <AuthorizeView>
+            <Authorized>
+                <form method="post" action="/auth/logout" class="logout-form">
+                    <AntiforgeryToken />
+                    <MudTooltip Text="Sign out"><MudIconButton Icon="@Icons.Material.Filled.Logout" aria-label="Sign out" ButtonType="ButtonType.Submit" /></MudTooltip>
+                </form>
+            </Authorized>
+        </AuthorizeView>
     </aside>
 
     <main class="app-main">

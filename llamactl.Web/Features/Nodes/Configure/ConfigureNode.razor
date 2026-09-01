@@ -1,0 +1,149 @@
+@page "/nodes/{NodeId:guid}/config"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IDisposable
+@inject GetNodeConfiguration.Handler GetConfiguration
+@inject ConfigureNode.Handler SaveConfiguration
+@inject ISnackbar Snackbar
+@inject ILogger<ConfigureNode> Logger
+
+<PageTitle>Configure node | llamactl</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">Node configuration</p>
+        <h1>@(_nodeName ?? "Node")</h1>
+    </div>
+    <MudButton Href="/nodes" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">Nodes</MudButton>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Success" Indeterminate="true" />
+}
+else if (_notFound)
+{
+    <div class="inline-error">Node was not found.</div>
+}
+else
+{
+    <section class="operator-panel config-form">
+        @if (_validationIssues.Count > 0)
+        {
+            <div class="validation-list" aria-label="Agent validation results">
+                @foreach (var issue in _validationIssues)
+                {
+                    <div class="validation-item validation-@issue.Severity.ToString().ToLowerInvariant()">
+                        <strong>@issue.Code</strong><span>@issue.Message</span>
+                    </div>
+                }
+            </div>
+        }
+        <div class="section-heading">
+            <div>
+                <h2>Runtime and storage</h2>
+                <p>Confirm discovered suggestions or provide explicit node-local paths.</p>
+            </div>
+        </div>
+        <div class="form-grid">
+            @foreach (var field in PathFields)
+            {
+                <MudTextField T="string" Value="@GetPath(field.Key)" ValueChanged="@((string value) => SetPath(field.Key, value))"
+                              Label="@field.Label" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            }
+            <MudNumericField T="long" @bind-Value="_vramBudgetMiB" Label="VRAM budget (MiB)" Variant="Variant.Outlined" />
+            <MudNumericField T="int" @bind-Value="_portStart" Label="Port start" Variant="Variant.Outlined" />
+            <MudNumericField T="int" @bind-Value="_portEnd" Label="Port end" Variant="Variant.Outlined" />
+            <MudNumericField T="int" @bind-Value="_gpuLayers" Label="Default GPU layers" Variant="Variant.Outlined" />
+            <MudSwitch T="bool" @bind-Value="_jinjaEnabled" Color="Color.Success">Enable Jinja templates</MudSwitch>
+        </div>
+        @if (_error is not null)
+        {
+            <div class="inline-error">@_error</div>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@_saving" OnClick="SaveAsync">@(_saving ? "Saving" : "Save configuration")</MudButton>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid NodeId { get; set; }
+
+    private static readonly (string Key, string Label)[] PathFields =
+    [
+        ("llamaBin", "llama.cpp binaries"), ("llamaSource", "llama.cpp source"),
+        ("rocm", "ROCm root"), ("modelsRoot", "Models root"), ("hfHome", "HF home"),
+        ("flatDir", "Flat model directory"), ("presetFile", "Preset file"),
+        ("emptyCache", "Empty cache"), ("systemdDir", "systemd directory"),
+        ("configRepo", "Configuration repository")
+    ];
+    private readonly Dictionary<string, string> _paths = new(StringComparer.Ordinal);
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<ValidationIssue> _validationIssues = [];
+    private string? _nodeName;
+    private string? _error;
+    private long _vramBudgetMiB = 1;
+    private int _portStart = 48_000;
+    private int _portEnd = 48_999;
+    private int _gpuLayers = 99;
+    private bool _jinjaEnabled = true;
+    private bool _loading = true;
+    private bool _saving;
+    private bool _notFound;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var response = await GetConfiguration.HandleAsync(new(NodeId), _lifetime.Token);
+        if (response is null) { _notFound = true; _loading = false; return; }
+        _nodeName = response.Name;
+        _validationIssues = response.ValidationIssues;
+        var config = response.Configuration;
+        if (config is not null)
+        {
+            SetPaths(config.Paths);
+            _vramBudgetMiB = config.VramBudgetMiB;
+            _portStart = config.PortRange.Start;
+            _portEnd = config.PortRange.End;
+            _gpuLayers = config.DefaultGpuLayers;
+            _jinjaEnabled = config.JinjaEnabled;
+        }
+        else
+        {
+            foreach (var proposal in response.Announcement?.PathProposals ?? [])
+                _paths[proposal.Name] = proposal.Path;
+            _vramBudgetMiB = response.Announcement?.Description.VramTotalMiB ?? 1;
+        }
+        _loading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true; _error = null;
+        try
+        {
+            var command = new ConfigureNode.Command(NodeId, BuildConfiguration());
+            var result = await Invoke.Guarded(token => SaveConfiguration.HandleAsync(command, token), Logger, _lifetime.Token);
+            if (!result.IsSuccess) { _error = result.Error?.Message; return; }
+            Snackbar.Add("Configuration saved. The agent will validate and apply it.", Severity.Success);
+        }
+        finally { _saving = false; }
+    }
+
+    private NodeConfiguration BuildConfiguration() => new(
+        new NodePaths(GetPath("llamaBin"), GetPath("llamaSource"), GetPath("rocm"),
+            GetPath("modelsRoot"), GetPath("hfHome"), GetPath("flatDir"), GetPath("presetFile"),
+            GetPath("emptyCache"), GetPath("systemdDir"), GetPath("configRepo")),
+        _vramBudgetMiB, new PortRange(_portStart, _portEnd), _gpuLayers, _jinjaEnabled);
+
+    private string GetPath(string key) => _paths.GetValueOrDefault(key, string.Empty);
+    private void SetPath(string key, string value) => _paths[key] = value;
+    private void SetPaths(NodePaths paths)
+    {
+        _paths["llamaBin"] = paths.LlamaBin; _paths["llamaSource"] = paths.LlamaSource;
+        _paths["rocm"] = paths.Rocm; _paths["modelsRoot"] = paths.ModelsRoot;
+        _paths["hfHome"] = paths.HfHome; _paths["flatDir"] = paths.FlatDir;
+        _paths["presetFile"] = paths.PresetFile; _paths["emptyCache"] = paths.EmptyCache;
+        _paths["systemdDir"] = paths.SystemdDir; _paths["configRepo"] = paths.ConfigRepo;
+    }
+
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}

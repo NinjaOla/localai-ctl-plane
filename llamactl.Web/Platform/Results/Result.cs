@@ -26,4 +26,8 @@ public sealed record Result<T>
 
     public static Result<T> Success(T value) => new(value, null);
     public static Result<T> Conflict(string message) => new(default, new(ErrorKind.Conflict, message));
+    public static Result<T> NotFound(string message) => new(default, new(ErrorKind.NotFound, message));
+    public static Result<T> Validation(string message) => new(default, new(ErrorKind.Validation, message));
+    public static Result<T> NodeUnreachable(string message) => new(default, new(ErrorKind.NodeUnreachable, message));
+    public static Result<T> AgentError(string message) => new(default, new(ErrorKind.AgentError, message));
 }

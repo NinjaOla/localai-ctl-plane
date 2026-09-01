@@ -63,3 +63,55 @@ public sealed record InstanceSpec(
     int? Port,
     IReadOnlyDictionary<string, string?> Args,
     bool Persistent);
+
+public enum DesiredInstanceState
+{
+    Stopped,
+    Running
+}
+
+public enum ObservedInstanceState
+{
+    Unknown,
+    Stopped,
+    Starting,
+    Running,
+    Failed
+}
+
+public sealed record DesiredInstance(
+    Guid Id,
+    long Revision,
+    InstanceSpec Spec,
+    DesiredInstanceState State,
+    int? AdoptProcessId);
+
+public sealed record AgentDesiredState(
+    long Version,
+    NodeConfiguration? Configuration,
+    IReadOnlyList<DesiredInstance> Instances);
+
+public sealed record ObservedInstance(
+    Guid Id,
+    long Revision,
+    ObservedInstanceState State,
+    int? ProcessId,
+    string? Error);
+
+public sealed record ReconciliationReport(
+    long DesiredStateVersion,
+    IReadOnlyList<ValidationIssue> ValidationIssues,
+    IReadOnlyList<ObservedInstance> Instances);
+
+public enum ProcessLogStream
+{
+    StandardOutput,
+    StandardError
+}
+
+public sealed record ProcessLogLine(
+    Guid InstanceId,
+    long Sequence,
+    DateTimeOffset Timestamp,
+    ProcessLogStream Stream,
+    string Text);

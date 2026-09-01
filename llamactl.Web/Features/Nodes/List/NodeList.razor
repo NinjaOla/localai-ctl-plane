@@ -1,9 +1,11 @@
 @page "/"
 @page "/nodes"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @implements IDisposable
 @inject ListNodes.Handler ListNodesHandler
 @inject OnboardNode.Handler OnboardNodeHandler
 @inject ISnackbar Snackbar
+@inject ILogger<NodeList> Logger
 
 <PageTitle>Nodes | llamactl</PageTitle>
 
@@ -46,9 +48,12 @@
                     <MudTh>VRAM</MudTh>
                     <MudTh>llama.cpp</MudTh>
                     <MudTh>Last seen</MudTh>
+                    <MudTh>Preset</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Node"><strong>@context.Name</strong></MudTd>
+                    <MudTd DataLabel="Node">
+                        <a href="@($"/nodes/{context.Id}/config")"><strong>@context.Name</strong></a>
+                    </MudTd>
                     <MudTd DataLabel="Status">
                         <span class="health-badge @HealthClass(context.Health)">@HealthLabel(context.Health)</span>
                     </MudTd>
@@ -56,6 +61,7 @@
                     <MudTd DataLabel="VRAM">@FormatVram(context.VramTotalMiB)</MudTd>
                     <MudTd DataLabel="llama.cpp">@(context.LlamaCppVersion ?? "Not reported")</MudTd>
                     <MudTd DataLabel="Last seen">@FormatLastSeen(context.LastSeen)</MudTd>
+                    <MudTd DataLabel="Preset"><a href="@($"/nodes/{context.Id}/preset")">Edit</a></MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
                     <div class="empty-state">
@@ -147,7 +153,7 @@
         _formError = null;
         try
         {
-            var result = await OnboardNodeHandler.HandleAsync(command, _lifetime.Token);
+            var result = await Invoke.Guarded(token => OnboardNodeHandler.HandleAsync(command, token), Logger, _lifetime.Token);
             if (!result.IsSuccess)
             {
                 _formError = result.Error?.Message;
